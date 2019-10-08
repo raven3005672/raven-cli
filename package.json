@@ -1,0 +1,27 @@
+{
+  "name": "@raven/raven-cli",
+  "version": "0.0.1",
+  "description": "a test cli of project init",
+  "main": "index.js",
+  "bin": {
+    "ip": "./index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raven3005672/raven-cli.git"
+  },
+  "keywords": [
+    "cli"
+  ],
+  "author": "Ravenlynn",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/raven3005672/raven-cli/issues"
+  },
+  "homepage": "https://github.com/raven3005672/raven-cli#readme",
+  "dependencies": {
+  }
+}
