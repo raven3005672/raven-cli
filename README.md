@@ -64,4 +64,106 @@ open        跨平台打开app，比如调试的时候打开chrome
     * 比如install命令，则通过require动态映射install.js文件来处理逻辑
     * require支持动态名称，如require('./scripts/' + command)这样，如果command是install则映射执行script/install.js文件
 
+### install命令：安装一个模板插件包
 
+核心处理流程如下：
+
+1. 先判断是否硬盘缓存目录~/.maoda下是否已经安装过模板插件包
+    * 如果没有，则接下来进行安装（相当于在目录下执行npm install）
+    * 如果有，且版本低，则提示升级
+    * 如果有，且版本最新，则不作为
+2. 安装过程即execSync('npm i xxx@latest -s', {cwd: '~/.maoda'})
+
+### init命令：选一个模板插件包来初始化一个新工程
+
+这是一个脚手架高频而核心的功能
+
+1. 查询硬盘缓存目录~/.maoda下的package.json文件，读取其中dependacies字段，拿到已安装的模板插件包。
+    * 如果一个都没安装，则提示用户要先install
+2. 让用户选择一套模板
+    * 利用inquery库发起对话，罗列出已选模板，让用户选择
+3. 触发模板初始化流程
+    * 用户选择某个模板，则用yeoman-environment这个库去执行缓存目录里的这个包
+    * 这里相当于跨目录的两个js文件引用执行，用到了之前说的import-from这个库
+4. 模板插件包被执行，则启动了常规的模板拷贝过程
+
+### build命令：在工程里执行构建
+
+1. 确定工程目录
+    * 工程目录即执行目录，通过process.cwd()获取
+2. 读取该工程所用的构建插件
+    * 读取工程中约定的配置文件（采用约定式的配置，类似webpack.config.js、.babelrc、.prettierrc）
+    * 读取配置中builder配置项(即指定的构建插件包)
+    * 如果有的话，读取自定义webpack配置（约定为webpackCustom字段，后续会被合并/覆盖到默认webpack配置上）
+3. 使用指定的构建插件包来进行webpack打包
+    * 判断工程中是否已经安装
+    * 未安装，则在工程路径中执行npm install(或yarn add，此处可根据用户工程中lock文件的类型，判断用户使用的npm还是yarn)
+    * 已安装，则直接执行build
+
+### dev命令：启动devServer进行调试
+
+类似build只不过webpack配置不同
+
+## 模板插件包
+
+核心功能：提供模板文件夹+文件夹的拷贝
+
+1. 询问用户，并获取反馈的答案
+    * 比如工程名是什么，描述一下你的工程，是否使用TypeScript，是否使用Sass/Less/Stylus等
+2. 根据用户的答案，拷贝对应的模板，细分两种拷贝
+    * 直接拷贝，直接把模板插件包里的文件夹/文件，拷贝到用户工程目录
+    * 填充模板拷贝，将用户答案，填充到文档的对应位置，类似WebpackHTMLPlugin、ejs，如将name: <%=packageName%>填充成name:我的工程
+3. 在工程中执行npm依赖的安装
+
+看似流程很多，其实只用一个现成的轮子就可以解决，即yeoman-generator，它帮我们把这些过程都封装好了，我们只需继承基类，并写几个预设的生命周期函数即可。
+```
+module.exports = class extends Generator {
+    // 问询环节
+    prompting() {
+        return this.prompt([
+            {
+                type: 'input',
+                name: 'appName',
+                message: '请输入项目名称：'
+            },
+            {
+                type: 'list',
+                choices: ['JavaScript', 'TypeScript'],
+                name: 'language',
+                message: '请选择项目语言',
+                default: 'TypeScript'
+            },
+        ]).then(answers => {
+            this.answers = answers;
+        })
+    }
+    // 模板拷贝
+    writing() {
+        // 从模板路径拷贝到工程路径
+        this.fs.copy(this.templatePath(), this.destinationPath());
+    }
+    // 安装依赖
+    install() {
+        this.installDependencies();
+    }
+    end() {
+        this.log('happy coding!');
+    }
+}
+```
+
+模板插件包导出的是一个class，我们需要通过上文提到的全局命令包的yeoman-environment来启动
+```
+yeomanEnv.register(resolveFrom('./maoda', 'gen-tpl'), 'gen-tpl');
+yeomanEnv.run('gen-tpl', (e, d) => {
+    d && this.console('happy coding', 'green')
+})
+```
+
+这里同样用到前文提到的resolve-from包，进行跨目录的引用解析。
+
+## 构建插件包
+
+构建插件包其实核心就是webpack能力，将内置的webpack.config.js与用户工程下自定义的webpackCustom进行merge，然后执行webpack流程。
+
+构建工具不一定非要使用webpack，比如可以选择rollup之类的。
