@@ -22,3 +22,11 @@ which env
 env可以在系统的PATH目录中查找脚本解释器安装目录。
 
 添加#!/usr/bin/env node是告诉系统，这个脚本使用node.js来执行。这样我们就可以简化命令，执行index.js直接得到ip地址，不需要显式的调用node index.js
+
+package.json
+
+bin: {
+  "xxx": 'xxx'
+}
+
+npm link
